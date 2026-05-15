@@ -1,0 +1,21 @@
+{
+  "name": "ติดตามงาน Arjaro Herb",
+  "short_name": "ติดตามงาน",
+  "description": "ระบบติดตามงาน ซ่อมบำรุง เอกสาร GMP โครงการ และจัดซื้อ สำหรับ Arjaro Herb",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#1a1d23",
+  "background_color": "#f5f3ee",
+  "lang": "th",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

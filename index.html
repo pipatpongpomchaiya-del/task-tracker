@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#1a1d23">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
 <title>ติดตามงาน • Arjaro Herb</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,6 +56,14 @@ body { background: radial-gradient(circle at 20% 0%, rgba(200,85,61,0.04) 0%, tr
 .tab.active { background: var(--ink); color: white; border-color: var(--ink); }
 .tab .count { display: inline-block; margin-left: 4px; padding: 1px 6px; background: var(--accent-soft); color: var(--accent); border-radius: 8px; font-size: 11px; font-family: 'JetBrains Mono', monospace; font-weight: 600; }
 .tab.active .count { background: rgba(255,255,255,0.15); color: white; }
+.search-box { position: relative; margin-bottom: 12px; }
+.search-box input { width: 100%; padding: 10px 36px 10px 38px; border: 1px solid var(--line); border-radius: 10px; font-family: inherit; font-size: 14px; background: var(--bg-card); color: var(--ink); outline: none; transition: border-color 0.15s, box-shadow 0.15s; box-shadow: var(--shadow-sm); }
+.search-box input::placeholder { color: var(--ink-faint); }
+.search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-faint); font-size: 14px; pointer-events: none; }
+.search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: var(--ink-faint); border: none; color: white; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; font-size: 13px; line-height: 1; display: none; align-items: center; justify-content: center; padding: 0; }
+.search-clear.show { display: flex; }
+.search-clear:active { background: var(--accent); }
 .tasks { display: flex; flex-direction: column; gap: 8px; }
 .task { background: var(--bg-card); border-radius: 12px; padding: 12px 14px; border: 1px solid var(--line); box-shadow: var(--shadow-sm); display: flex; gap: 12px; align-items: flex-start; position: relative; transition: all 0.2s; animation: slideIn 0.3s ease-out; cursor: pointer; }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
@@ -361,6 +372,12 @@ body { background: radial-gradient(circle at 20% 0%, rgba(200,85,61,0.04) 0%, tr
     <button class="tab" data-filter="done">เสร็จ <span class="count" id="c-done">0</span></button>
   </div>
 
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search" placeholder="ค้นหางาน, โน้ต, ขั้นตอน..." autocomplete="off">
+    <button class="search-clear" id="search-clear" aria-label="ล้างคำค้นหา">×</button>
+  </div>
+
   <div class="tasks" id="tasks"></div>
 
   <div class="storage-bar" id="storage-bar">
@@ -453,6 +470,7 @@ body { background: radial-gradient(circle at 20% 0%, rgba(200,85,61,0.04) 0%, tr
 const STORE = 'arjaro_tasks_v3';
 let tasks = [];
 let currentFilter = 'active';
+let searchQuery = '';
 let editingCat = null;
 let editingDate = null;
 let currentDetailId = null;
@@ -613,6 +631,13 @@ function isInProgress(t) {
   if (t.done) return false;
   const p = progress(t);
   return p && p.done > 0 && p.done < p.total;
+}
+function matchesSearch(t, q) {
+  if (!q) return true;
+  if ((t.text || '').toLowerCase().includes(q)) return true;
+  if ((t.note || '').toLowerCase().includes(q)) return true;
+  if (t.subtasks && t.subtasks.some(s => (s.text || '').toLowerCase().includes(q))) return true;
+  return false;
 }
 function escapeHtml(s) { return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function addHistory(t, action) {
@@ -1086,6 +1111,7 @@ function render() {
   else if (['maint','gmp','project','purchase'].includes(currentFilter)) {
     filtered = filtered.filter(t => !t.done && t.cat === currentFilter);
   }
+  if (searchQuery) filtered = filtered.filter(t => matchesSearch(t, searchQuery));
   filtered.sort((a,b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;
     const ad = a.date ? new Date(a.date).getTime() : Infinity;
@@ -1093,7 +1119,10 @@ function render() {
     return ad - bd;
   });
   if (filtered.length === 0) {
-    tasksEl.innerHTML = '<div class="empty"><div class="empty-icon">◌</div><div class="empty-text">ไม่มีงานในส่วนนี้</div><div class="empty-sub">พิมพ์งานใหม่ในช่องด้านบน</div></div>';
+    const emptyMsg = searchQuery
+      ? '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">ไม่พบงานที่ตรงกับ "'+escapeHtml(searchQuery)+'"</div><div class="empty-sub">ลองคำค้นอื่น หรือเปลี่ยน tab</div></div>'
+      : '<div class="empty"><div class="empty-icon">◌</div><div class="empty-text">ไม่มีงานในส่วนนี้</div><div class="empty-sub">พิมพ์งานใหม่ในช่องด้านบน</div></div>';
+    tasksEl.innerHTML = emptyMsg;
   } else {
     tasksEl.innerHTML = filtered.map(t => taskHTML(t)).join('');
   }
@@ -1205,6 +1234,22 @@ inputEl.addEventListener('keydown', e => {
 });
 btnAdd.addEventListener('click', addTask);
 
+const searchEl = document.getElementById('search');
+const searchClearEl = document.getElementById('search-clear');
+searchEl.addEventListener('input', () => {
+  searchQuery = searchEl.value.trim().toLowerCase();
+  searchClearEl.classList.toggle('show', !!searchQuery);
+  render();
+});
+searchEl.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { searchEl.value = ''; searchQuery = ''; searchClearEl.classList.remove('show'); render(); searchEl.blur(); }
+});
+searchClearEl.addEventListener('click', () => {
+  searchEl.value = ''; searchQuery = '';
+  searchClearEl.classList.remove('show');
+  render(); searchEl.focus();
+});
+
 document.getElementById('tabs').addEventListener('click', e => {
   if (e.target.closest('.tab')) {
     const tab = e.target.closest('.tab');
@@ -1226,6 +1271,14 @@ document.getElementById('today-date').textContent = wd + ' ' + today.getDate() +
 
 load();
 render();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(err => {
+      console.warn('SW register failed:', err);
+    });
+  });
+}
 
 if (tasks.length === 0) {
   const sample = {
