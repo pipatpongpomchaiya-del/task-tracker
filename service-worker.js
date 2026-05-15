@@ -1,4 +1,4 @@
-const CACHE = 'arjaro-tasks-v1';
+const CACHE = 'arjaro-tasks-v2';
 const ASSETS = [
   './',
   './index.html',

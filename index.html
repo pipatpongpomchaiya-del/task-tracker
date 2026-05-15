@@ -903,13 +903,63 @@ function addSubtask() {
   const t = tasks.find(t => t.id === currentDetailId);
   if (!t) return;
   const input = document.getElementById('new-subtask');
+  if (!input) return;
   const text = input.value.trim();
   if (!text) return;
   t.subtasks.push({ text, done: false, created: new Date().toISOString() });
   addHistory(t, 'เพิ่มขั้นตอน: '+text);
-  save(); renderDetail();
-  setTimeout(() => { const i = document.getElementById('new-subtask'); if (i) i.focus(); }, 50);
+  save();
+  input.value = '';
+  appendSubtaskUI(t);
   render();
+}
+function appendSubtaskUI(t) {
+  const subtasksContainer = document.querySelector('#detail-content .subtasks');
+  if (!subtasksContainer) return;
+  const inputRow = subtasksContainer.querySelector('.subtask-input-row');
+  if (!inputRow) return;
+  Array.from(subtasksContainer.children).forEach(c => {
+    if (!c.classList.contains('subtask') && !c.classList.contains('subtask-input-row')) c.remove();
+  });
+  const idx = t.subtasks.length - 1;
+  const s = t.subtasks[idx];
+  inputRow.insertAdjacentHTML('beforebegin',
+    '<div class="subtask">'
+    + '<div class="checkbox" onclick="toggleSub('+idx+')"></div>'
+    + '<input class="subtask-text" value="'+escapeHtml(s.text)+'" onblur="editSub('+idx+', this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}">'
+    + '<button class="delete" onclick="deleteSub('+idx+')">×</button>'
+    + '</div>');
+  updateProgressUI(t);
+}
+function updateProgressUI(t) {
+  const sections = document.querySelectorAll('#detail-content .section');
+  let stepsSection = null;
+  for (const s of sections) {
+    if (s.querySelector('.subtasks')) { stepsSection = s; break; }
+  }
+  if (!stepsSection) return;
+  const p = progress(t);
+  const sectionTitle = stepsSection.querySelector('.section-title');
+  let chip = sectionTitle.querySelector('.section-progress');
+  let bar = stepsSection.querySelector(':scope > .progress-bar');
+  if (!p) {
+    if (chip) chip.remove();
+    if (bar) bar.remove();
+    return;
+  }
+  if (!chip) {
+    chip = document.createElement('span');
+    chip.className = 'section-progress';
+    sectionTitle.appendChild(chip);
+  }
+  chip.textContent = p.done + '/' + p.total + ' • ' + p.pct + '%';
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'progress-bar';
+    bar.innerHTML = '<div class="progress-bar-fill"></div>';
+    stepsSection.querySelector('.section-header').insertAdjacentElement('afterend', bar);
+  }
+  bar.querySelector('.progress-bar-fill').style.width = p.pct + '%';
 }
 function addSubtaskPrompt() {
   const input = document.getElementById('new-subtask');
